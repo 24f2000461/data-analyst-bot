@@ -158,6 +158,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 def main():
+    import asyncio
+    # Python 3.14 no longer auto-creates an event loop on the main thread;
+    # python-telegram-bot 21.6 still relies on asyncio.get_event_loop() finding one.
+    # Explicitly create and set one here so run_polling() works on any Python version.
+    try:
+        asyncio.get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     logger.info("Bot starting (polling)...")
