@@ -136,25 +136,40 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     history = chat_history[chat_id][-10:]
 
     start = time.time()
-    llm_result = ask_llm(history)
-    answer_value = llm_result.get("answer")
+    try:
+        llm_result = ask_llm(history)
+        answer_value = llm_result.get("answer")
+        error_note = None
+    except Exception as e:
+        logger.exception("LLM call failed")
+        answer_value = None
+        error_note = f"{type(e).__name__}: {str(e)[:300]}"
 
     log_entry = {
         "chat_id": chat_id,
         "timestamp": time.time(),
         "incoming_message": user_text,
         "conversation_context": history,
-        "llm_output": llm_result,
+        "llm_output": answer_value,
+        "error": error_note,
         "latency_sec": round(time.time() - start, 2),
     }
     try:
         log_url = append_log(log_entry)
-    except Exception as e:
+    except Exception:
         logger.exception("Failed to write log to gist")
         log_url = "https://example.com/log-failed"
 
-    final_reply = {"answer": answer_value, "log_url": log_url}
-    await update.message.reply_text(json.dumps(final_reply, ensure_ascii=False))
+    if error_note:
+        # Still send something back so we can see what went wrong, instead of silence.
+        final_reply = {"answer": None, "error": error_note, "log_url": log_url}
+    else:
+        final_reply = {"answer": answer_value, "log_url": log_url}
+
+    try:
+        await update.message.reply_text(json.dumps(final_reply, ensure_ascii=False))
+    except Exception:
+        logger.exception("Failed to send reply to Telegram")
 
 
 def _start_dummy_port_listener():
