@@ -157,8 +157,34 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(json.dumps(final_reply, ensure_ascii=False))
 
 
+def _start_dummy_port_listener():
+    """Render's free tier only offers Web Services, which must bind a port
+    or Render will keep restarting the process. This starts a tiny HTTP
+    server in a background thread just to satisfy that health check —
+    it has nothing to do with the bot's actual logic."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    port = int(os.environ.get("PORT", "10000"))
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is running.")
+
+        def log_message(self, format, *args):
+            pass  # silence noisy request logs
+
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    logger.info("Dummy port listener started on port %s", port)
+
+
 def main():
     import asyncio
+    _start_dummy_port_listener()
     # Python 3.14 no longer auto-creates an event loop on the main thread;
     # python-telegram-bot 21.6 still relies on asyncio.get_event_loop() finding one.
     # Explicitly create and set one here so run_polling() works on any Python version.
