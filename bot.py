@@ -107,7 +107,7 @@ def ask_llm(conversation: list[str]) -> dict:
     ) + "\n\nAnswer the LAST message above. Respond with only the JSON object."
 
     response = genai_client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-1.5-flash",
         contents=prompt,
     )
     text = response.text.strip()
