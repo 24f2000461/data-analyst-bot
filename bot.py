@@ -100,16 +100,31 @@ formatting — just the JSON object, e.g.:
 """
 
 
+CANDIDATE_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"]
+
+
 def ask_llm(conversation: list[str]) -> dict:
     """conversation: list of past user messages in this chat (last one is the one to answer)."""
     prompt = SYSTEM_PROMPT + "\n\nConversation so far:\n" + "\n".join(
         f"- {m}" for m in conversation
     ) + "\n\nAnswer the LAST message above. Respond with only the JSON object."
 
-    response = genai_client.models.generate_content(
-        model="gemini-1.5-flash",
-        contents=prompt,
-    )
+    last_error = None
+    for model_name in CANDIDATE_MODELS:
+        try:
+            response = genai_client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+            )
+            logger.info("Successfully used model: %s", model_name)
+            break
+        except Exception as e:
+            logger.warning("Model %s failed: %s", model_name, e)
+            last_error = e
+            response = None
+    else:
+        raise last_error
+
     text = response.text.strip()
 
     # strip accidental markdown fences if the model adds them
